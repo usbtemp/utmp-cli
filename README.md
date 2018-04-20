@@ -1,5 +1,5 @@
 # usbtemp-cli
-Read temperature from [usbtemp.com](https://usbtemp.com/) USB thermometer.
+Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/).
 
 ### How to run it
 1. Clone (or download) this repository (and extract files)
@@ -16,6 +16,9 @@ Instead of compiling from the source, already compiled executable could be downl
 
 ### Windows
 This application could be also compiled on Windows with a MinGW compiler.
+
+### OpenWRT/LEDE
+Package (with digitemp) is available at [opkg-packages](https://github.com/jaka/opkg-packages).
 
 ## Usage
 ```
