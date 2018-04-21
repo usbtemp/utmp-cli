@@ -10,6 +10,7 @@ void wait_1s(void)
   wait_tv.tv_sec = 1;
   select(0, NULL, NULL, NULL, &wait_tv);
 }
+
 int is_fd_valid(HANDLE fd)
 {
   return (fd > 0);
@@ -20,25 +21,26 @@ void wait_1s(void)
 {
   Sleep(1000);
 }
+
 int is_fd_valid(HANDLE fd)
 {
   return (fd != INVALID_HANDLE_VALUE);
 }
 #endif
 
-extern int ut_errno; 
+extern int ut_errno;
 
 static char* ut_msgs[] = {
   "",
-  "Error, could not get baud rate!",
-  "Error, could not set baud rate!",
+  "Error, could not get baudrate!",
+  "Error, could not set baudrate!",
   "Error, serial port does not exist!",
   "Error, you don't have rw permission to access serial port!",
   "Error, failed to open serial port device!",
   "Error, sensor not found!", /* 6 */
   "Error, sensor CRC mismatch!",
   "Warining, not expected sensor response!",
-  "Error, could not send data"
+  "Error, could not send data!"
 };
 
 static unsigned char lsb_crc8(unsigned char *data_in, unsigned int len, const unsigned char generator)
@@ -50,10 +52,12 @@ static unsigned char lsb_crc8(unsigned char *data_in, unsigned int len, const un
     crc ^= *(data_in + i);
     bit_counter = 8;
     do {
-      if (crc & 0x01)
+      if (crc & 0x01) {
         crc = (((crc >> 1) & 0x7f) ^ generator);
-      else
+      }
+      else {
         crc = (crc >> 1) & 0x7f;
+      }
       bit_counter--;
     } while (bit_counter > 0);
   }

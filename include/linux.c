@@ -60,7 +60,8 @@ int owReset(int fd)
           /* Ground. */
         case 0xf0:
           /* No response. */
-          rv = -1; break;
+          rv = -1;
+          break;
         default:
           /* Got a response */
           rv = 0;
@@ -185,7 +186,7 @@ int owOpen(const char *serial_port)
 
   if (tcsetattr(fd, TCSANOW, &term) < 0) {
     close(fd);
-    ut_errno = 0;
+    ut_errno = 2;
     return -1;
   }
 
