@@ -50,8 +50,7 @@ int main(int argc, char **argv)
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI v1.01 Copyright 2018 usbtemp.com Licensed under MIT licence.\n");
-    
+    printf("USB Thermometer CLI v1.02 Copyright 2018 usbtemp.com Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
