@@ -12,7 +12,7 @@ May 13 17:05:02 Sensor C: 22.62
 ```
 Date/time formatting is `%b %d %H:%M:%S`.
 
-Instead of compiling from the source, already compiled executable could be downloaded from Releases tab.
+Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/usbtemp-cli/releases/latest).
 
 ### Windows
 This application could be also compiled on Windows with a MinGW compiler.
