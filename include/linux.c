@@ -142,15 +142,13 @@ unsigned char owRead(int fd)
 
 int owWrite(int fd, unsigned char wbuff)
 {
-  if (owWriteByte(fd, wbuff) != wbuff) {
-   return -1;
-  }
-  return 0;
+  return (owWriteByte(fd, wbuff) == wbuff) ? 0 : -1;
 }
 
 static int file_exists(const char *filename)
 {
   struct stat st;
+
   return (stat(filename, &st) == 0);
 }
 

@@ -1,5 +1,6 @@
 #include <getopt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "platform.h"
@@ -8,7 +9,8 @@
 enum {
   HELP,
   ACQUIRE_TEMP,
-  READ_ROM
+  READ_ROM,
+  SET
 };
 
 int main(int argc, char **argv)
@@ -20,22 +22,27 @@ int main(int argc, char **argv)
   int rv = 0;
   int i;
   int action = ACQUIRE_TEMP;
+  int precision = 12;
   float temperature;
   unsigned char rom[DS18X20_ROM_SIZE];
   char timebuf[40];
   time_t now;
   struct tm *timeptr;
 
-  while ((c = getopt(argc, argv, "hrqs:")) != -1) {
+  while ((c = getopt(argc, argv, "hp:qrs:")) != -1) {
     switch (c) {
       case 'h':
         action = HELP;
         break;
-      case 'r':
-        action = READ_ROM;
+      case 'p':
+        action = SET;
+        precision = strtol(optarg, NULL, 10);
         break;
       case 'q':
         verbose = 0;
+        break;
+      case 'r':
+        action = READ_ROM;
         break;
       case 's':
         serial_port = optarg;
@@ -50,12 +57,13 @@ int main(int argc, char **argv)
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI v1.02 Copyright 2018 usbtemp.com Licensed under MIT licence.\n");
+    printf("USB Thermometer CLI v1.03 Copyright 2019 usbtemp.com Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
-    printf("\t-r\tPrint ROM\n");
+    printf("\t-p\tSet probe precision {9,10,11,12}\n");
     printf("\t-q\tQuiet mode\n");
+    printf("\t-r\tGet probe serial number (ROM)\n");
     printf("\t-s\tSet serial port\n");
     return 0;
   }
@@ -108,8 +116,16 @@ int main(int argc, char **argv)
         printf("%02x", rom[i]);
       }
       printf("\n");
-      return 0;
+      break;
 
+    case SET:
+      if (precision < 9 || 12 < precision) {
+        if (verbose == 1) {
+          fprintf(stderr, "Probe precision out of range!\n");
+        }
+        break;
+      }
+      rv = DS18B20_setprecision(fd, precision);
       break;
 
   }

@@ -1,10 +1,10 @@
 # usbtemp-cli
-Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/).
+Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS9097E compatible 1-wire adapter with one DS18B20 digital probe attached.
 
 ### How to run it
 1. Clone (or download) this repository (and extract files)
 2. Run `make` to compile the binary
-3. Execute the binary: `./usbtemp-cli`
+3. Execute the binary `./usbtemp-cli`
 
 The output is in degrees Celsius and looks like:
 ```
@@ -23,8 +23,9 @@ Package (with digitemp) is available at [opkg-packages](https://github.com/jaka/
 ## Usage
 ```
 $ ./usbtemp-cli -h
-	-r	Print ROM
+	-p	Set probe precision
 	-q	Quiet mode
+	-r	Get probe serial number (ROM)
 	-s	Set serial port
 ```
 Serial port could be anything like `/dev/ttyUSB0`, `COM6` or similar.

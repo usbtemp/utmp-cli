@@ -69,7 +69,7 @@ char *DS18B20_errmsg(void)
   return ut_msgs[ut_errno];
 }
 
-int DS18B20_measure(HANDLE fd)
+static int DS18B20_start(HANDLE fd)
 {
   if (owReset(fd) < 0) {
     ut_errno = 6;
@@ -77,6 +77,43 @@ int DS18B20_measure(HANDLE fd)
   }
   if (owWrite(fd, 0xcc) < 0) {
     ut_errno = 8;
+    return -1;
+  }
+  return 0;
+}
+
+static int DS18B20_sp(HANDLE fd, unsigned char *sp)
+{
+  unsigned char i, crc;
+
+  if (DS18B20_start(fd) < 0) {
+    return -1;
+  }
+  if (owWrite(fd, 0xbe) < 0) {
+    ut_errno = 8;
+    return -1;
+  }
+  for (i = 0; i < DS18X20_SP_SIZE; i++) {
+    *(sp + i) = owRead(fd);
+  }
+
+  if ((*(sp + 4) & 0x9f) != 0x1f) {
+    ut_errno = 6;
+    return -1;
+  }
+
+  crc = lsb_crc8(sp, DS18X20_SP_SIZE - 1, DS18X20_GENERATOR);
+  if (*(sp + DS18X20_SP_SIZE - 1) != crc) {
+    ut_errno = 7;
+    return -1;
+  }
+
+  return 0;
+}
+
+int DS18B20_measure(HANDLE fd)
+{
+  if (DS18B20_start(fd) < 0) {
     return -1;
   }
   if (owWrite(fd, 0x44) < 0) {
@@ -86,37 +123,59 @@ int DS18B20_measure(HANDLE fd)
   return 0;
 }
 
+int DS18B20_setprecision(HANDLE fd, int precision)
+{
+  int i, rv;
+  unsigned char cfg_old, cfg[4], sp_sensor[DS18X20_SP_SIZE];
+  unsigned char *p;
+
+  p = cfg + 3;
+  *p-- = 0x1f | ((unsigned char)(precision - 9) << 5);
+
+  rv = DS18B20_sp(fd, sp_sensor);
+  if (rv < 0) {
+    return rv;
+  }
+
+  cfg_old = sp_sensor[DS18B20_SP_CONFIG];
+  if (cfg_old == *(cfg + 3)) {
+    return 0;
+  }
+
+  *p-- = sp_sensor[DS18B20_SP_TL];
+  *p-- = sp_sensor[DS18B20_SP_TH];
+  *p = DS18B20_SP_WRITE;
+
+  if (DS18B20_start(fd) < 0) {
+    return -1;
+  }
+  for (i = 0; i < 4; i++) {
+    if (owWrite(fd, *p++) < 0) {
+      ut_errno = 8;
+      return -1;
+    }
+  }
+
+  if (DS18B20_start(fd) < 0) {
+    return -1;
+  }
+  if (owWrite(fd, DS18B20_SP_SAVE) < 0) {
+    ut_errno = 8;
+    return -1;
+  }
+
+  return 0;
+}
+
 int DS18B20_acquire(HANDLE fd, float *temperature)
 {
+  int rv;
   unsigned short T;
-  unsigned char i, crc, sp_sensor[DS18X20_SP_SIZE];
+  unsigned char sp_sensor[DS18X20_SP_SIZE];
 
-  if (owReset(fd) < 0) {
-    ut_errno = 6;
-    return -1;
-  }
-  if (owWrite(fd, 0xcc) < 0) {
-    ut_errno = 8;
-    return -1;
-  }
-  if (owWrite(fd, 0xbe) < 0) {
-    ut_errno = 8;
-    return -1;
-  }
-
-  for (i = 0; i < DS18X20_SP_SIZE; i++) {
-    sp_sensor[i] = owRead(fd);
-  }
-
-  if ((sp_sensor[4] & 0x9f) != 0x1f) {
-    ut_errno = 6;
-    return -1;
-  }
-
-  crc = lsb_crc8(&sp_sensor[0], DS18X20_SP_SIZE - 1, DS18X20_GENERATOR);
-  if (sp_sensor[DS18X20_SP_SIZE - 1] != crc) {
-    ut_errno = 7;
-    return -1;
+  rv = DS18B20_sp(fd, sp_sensor);
+  if (rv < 0) {
+    return rv;
   }
 
   T = (sp_sensor[1] << 8) + (sp_sensor[0] & 0xff);
@@ -148,7 +207,7 @@ int DS18B20_rom(HANDLE fd, unsigned char *rom)
   }
 
   crc = lsb_crc8(rom, DS18X20_ROM_SIZE - 1, DS18X20_GENERATOR);
-  if (rom[DS18X20_ROM_SIZE - 1] != crc) {
+  if (*(rom + DS18X20_ROM_SIZE - 1) != crc) {
     ut_errno = 7;
     return -1;
   }
