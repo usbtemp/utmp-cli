@@ -130,7 +130,7 @@ int DS18B20_setprecision(HANDLE fd, int precision)
   unsigned char *p;
 
   p = cfg + 3;
-  *p-- = 0x1f | ((unsigned char)(precision - 9) << 5);
+  *p = 0x1f | ((unsigned char)(precision - 9) << 5);
 
   rv = DS18B20_sp(fd, sp_sensor);
   if (rv < 0) {
@@ -138,10 +138,11 @@ int DS18B20_setprecision(HANDLE fd, int precision)
   }
 
   cfg_old = sp_sensor[DS18B20_SP_CONFIG];
-  if (cfg_old == *(cfg + 3)) {
+  if (cfg_old == *p) {
     return 0;
   }
 
+  p--;
   *p-- = sp_sensor[DS18B20_SP_TL];
   *p-- = sp_sensor[DS18B20_SP_TH];
   *p = DS18B20_SP_WRITE;

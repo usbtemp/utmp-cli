@@ -123,6 +123,7 @@ int main(int argc, char **argv)
         if (verbose == 1) {
           fprintf(stderr, "Probe precision out of range!\n");
         }
+        rv = 1;
         break;
       }
       rv = DS18B20_setprecision(fd, precision);
