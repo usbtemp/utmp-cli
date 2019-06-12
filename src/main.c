@@ -16,6 +16,7 @@ enum {
 int main(int argc, char **argv)
 {
   char c;
+  char units = 'C';
   HANDLE fd;
   char *serial_port = NULL;
   int verbose = 1;
@@ -29,8 +30,11 @@ int main(int argc, char **argv)
   time_t now;
   struct tm *timeptr;
 
-  while ((c = getopt(argc, argv, "hp:qrs:")) != -1) {
+  while ((c = getopt(argc, argv, "fhp:qrs:")) != -1) {
     switch (c) {
+      case 'f':
+        units = 'F';
+        break;
       case 'h':
         action = HELP;
         break;
@@ -52,15 +56,20 @@ int main(int argc, char **argv)
     }
   }
 
+  if (units == 'F') {
+    action = ACQUIRE_TEMP;
+  }
+
   if (action == HELP) {
     verbose = 1;
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI v1.03 Copyright 2019 usbtemp.com Licensed under MIT licence.\n");
+    printf("USB Thermometer CLI v1.04 Copyright 2019 usbtemp.com Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
+    printf("\t-f\tDisplay temperature using the Fahrenheit scale\n");
     printf("\t-p\tSet probe precision {9,10,11,12}\n");
     printf("\t-q\tQuiet mode\n");
     printf("\t-r\tGet probe serial number (ROM)\n");
@@ -102,7 +111,11 @@ int main(int argc, char **argv)
       timeptr = localtime(&now);
       strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", timeptr);
 
-      printf("%s Sensor C: %.2f\n", timebuf, temperature);
+      if (units == 'F') {
+        temperature = (9 * temperature) / 5 + 32;
+      }
+
+      printf("%s Sensor %c: %.2f\n", timebuf, units, temperature);
       break;
 
     case READ_ROM:

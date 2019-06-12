@@ -6,11 +6,11 @@ Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS
 2. Run `make` to compile the binary
 3. Execute the binary `./usbtemp-cli`
 
-The output is in degrees Celsius and looks like:
+The default output is time with the temperature in degrees Celsius and looks like:
 ```
 May 13 17:05:02 Sensor C: 22.62
 ```
-Date/time formatting is `%b %d %H:%M:%S`.
+By using `-f` switch the temperature unit will be switched to Fahrenheit. Date/time formatting is `%b %d %H:%M:%S`.
 
 Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/usbtemp-cli/releases/latest).
 
@@ -23,6 +23,7 @@ Package (with digitemp) is available at [opkg-packages](https://github.com/jaka/
 ## Usage
 ```
 $ ./usbtemp-cli -h
+	-f	Display temperature using the Fahrenheit scale
 	-p	Set probe precision
 	-q	Quiet mode
 	-r	Get probe serial number (ROM)
