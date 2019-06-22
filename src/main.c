@@ -15,6 +15,7 @@ enum {
 
 int main(int argc, char **argv)
 {
+  const char const *hex_upper = "%02X", *hex_lower = "%02x";
   char c;
   char units = 'C';
   HANDLE fd;
@@ -29,8 +30,9 @@ int main(int argc, char **argv)
   char timebuf[40];
   time_t now;
   struct tm *timeptr;
+  const char *hex_format = NULL;
 
-  while ((c = getopt(argc, argv, "fhp:qrs:")) != -1) {
+  while ((c = getopt(argc, argv, "fhp:qRrs:")) != -1) {
     switch (c) {
       case 'f':
         units = 'F';
@@ -45,8 +47,11 @@ int main(int argc, char **argv)
       case 'q':
         verbose = 0;
         break;
+      case 'R':
+        hex_format = hex_upper;
+        break;
       case 'r':
-        action = READ_ROM;
+        hex_format = hex_lower;
         break;
       case 's':
         serial_port = optarg;
@@ -60,19 +65,24 @@ int main(int argc, char **argv)
     action = ACQUIRE_TEMP;
   }
 
+  if (hex_format != NULL)
+  {
+    action = READ_ROM;
+  }
+
   if (action == HELP) {
     verbose = 1;
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI v1.04 Copyright 2019 usbtemp.com Licensed under MIT licence.\n");
+    printf("USB Thermometer CLI v1.041 Copyright 2019 usbtemp.com Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
     printf("\t-f\tDisplay temperature using the Fahrenheit scale\n");
     printf("\t-p\tSet probe precision {9,10,11,12}\n");
     printf("\t-q\tQuiet mode\n");
-    printf("\t-r\tGet probe serial number (ROM)\n");
+    printf("\t-r\tGet probe serial number (ROM) in hexadecimal, or -R uppercase\n");
     printf("\t-s\tSet serial port\n");
     return 0;
   }
@@ -126,7 +136,7 @@ int main(int argc, char **argv)
       }
       printf("ROM: ");
       for (i = 0; i < DS18X20_ROM_SIZE; i++) {
-        printf("%02x", rom[i]);
+        printf(hex_format, rom[i]);
       }
       printf("\n");
       break;

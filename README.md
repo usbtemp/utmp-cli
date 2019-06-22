@@ -26,7 +26,7 @@ $ ./usbtemp-cli -h
 	-f	Display temperature using the Fahrenheit scale
 	-p	Set probe precision
 	-q	Quiet mode
-	-r	Get probe serial number (ROM)
+	-r	Get probe serial number (ROM) in hexadecimal, or -R uppercase
 	-s	Set serial port
 ```
 Serial port could be anything like `/dev/ttyUSB0`, `COM6` or similar.
