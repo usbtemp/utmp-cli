@@ -1,5 +1,5 @@
-# usbtemp-cli
-Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS9097E compatible 1-wire adapter with one DS18B20 digital probe attached.
+# utmp-cli (usbtemp-cli)
+Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS9097E compatible 1-wire adapter with one DS18B20 digital probe attached through command line interface.
 
 ### How to run it
 1. Clone (or download) this repository (and extract files)
@@ -12,7 +12,7 @@ May 13 17:05:02 Sensor C: 22.62
 ```
 By using `-f` switch the temperature unit will be switched to Fahrenheit. Date/time formatting is `%b %d %H:%M:%S`.
 
-Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/usbtemp-cli/releases/latest).
+Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/utmp-cli/releases/latest).
 
 ### Windows
 This application could be also compiled on Windows with a MinGW compiler.
