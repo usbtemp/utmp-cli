@@ -1,6 +1,29 @@
 #include "usbtemp.h"
+#include <stdio.h>
 
 static int ut_errno;
+
+static int get_new_serial_port(char *buf, const unsigned int buflen, const char *s)
+{
+  const char *fmt_x = "COM%u", *fmt_xx = "\\\\.\\COM%u";
+  const char *fmt, *p;
+  unsigned int num = 0;
+
+  for (p = s; !isdigit(*p); p++);
+
+  while (isdigit(*p)) {
+    num *= 10;
+    num += *p - '0';
+    p++;
+  }
+
+  fmt = num > 9 ? fmt_xx : fmt_x;
+  if (snprintf(buf, buflen, fmt, num) < 0) {
+    return -1;
+  }
+
+  return 0;
+}
 
 static int owReset(HANDLE fd)
 {
@@ -101,11 +124,19 @@ HANDLE owOpen(const char *serial_port)
   HANDLE fd;
   DCB dcb = { 0 };
   COMMTIMEOUTS timeouts = { 0 };
+  char new_serial_port[16];
   
-  fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+  fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (fd == INVALID_HANDLE_VALUE) {
-    ut_errno = 3;
-    return fd;
+    if (get_new_serial_port(new_serial_port, sizeof(new_serial_port) - 1, serial_port) < 0) {
+      ut_errno = 3;
+      return fd;
+    }
+    fd = CreateFile(new_serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fd == INVALID_HANDLE_VALUE) {
+      ut_errno = 3;
+      return fd;
+    }
   }
   
   SecureZeroMemory(&dcb, sizeof(DCB));
