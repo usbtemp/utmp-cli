@@ -4,7 +4,7 @@ Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS
 ### How to run it
 1. Clone (or download) this repository (and extract files)
 2. Run `make` to compile the binary
-3. Execute the binary `./usbtemp-cli`
+3. Execute the binary `./utmp-cli`
 
 The default output is time with the temperature in degrees Celsius and looks like:
 ```
@@ -18,7 +18,7 @@ Instead of compiling from the source, already compiled executable could be downl
 This application could be also compiled on Windows with a MinGW compiler.
 
 ### OpenWRT/LEDE
-Package (with digitemp) is available at [opkg-packages](https://github.com/jaka/opkg-packages).
+Package (with digitemp) is available at [opkg-packages](https://github.com/usbtemp/opkg-packages).
 
 ## Usage
 ```
