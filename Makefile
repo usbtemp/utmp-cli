@@ -8,7 +8,7 @@ STRIP = $(CROSS_COMPILE)strip
 
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
-TARGET := usbtemp-cli
+TARGET := utmp-cli
 
 all: $(OBJECTS) $(TARGET)
 

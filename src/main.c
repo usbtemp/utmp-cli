@@ -15,7 +15,7 @@ enum {
 
 int main(int argc, char **argv)
 {
-  const char const *hex_upper = "%02X", *hex_lower = "%02x";
+  const char *hex_upper = "%02X", *hex_lower = "%02x";
   char c;
   char units = 'C';
   HANDLE fd;
