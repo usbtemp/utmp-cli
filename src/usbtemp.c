@@ -171,7 +171,8 @@ int DS18B20_setprecision(HANDLE fd, int precision)
 int DS18B20_acquire(HANDLE fd, float *temperature)
 {
   int rv;
-  unsigned short T;
+  short T;
+  unsigned short uT;
   unsigned char sp_sensor[DS18X20_SP_SIZE];
 
   rv = DS18B20_sp(fd, sp_sensor);
@@ -179,12 +180,8 @@ int DS18B20_acquire(HANDLE fd, float *temperature)
     return rv;
   }
 
-  T = (sp_sensor[1] << 8) + (sp_sensor[0] & 0xff);
-  if ((T >> 15) & 0x01) {
-    T--;
-    T ^= 0xffff;
-    T *= -1;
-  }
+  uT = (sp_sensor[1] << 8) | (sp_sensor[0] & 0xff);
+  T = (short)uT; /* Force using leading bit as a sign. */
   *temperature = (float)T / 16;
 
   return 0;
