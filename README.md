@@ -1,7 +1,7 @@
 # utmp-cli (usbtemp-cli)
 Read temperature from [usbtemp.com USB thermometer](https://usbtemp.com/) and DS9097E compatible 1-wire adapter with one DS18B20 digital probe attached through command line interface.
 
-### How to run it
+### How to compile from source
 1. Clone (or download) this repository (and extract files)
 2. Run `make` to compile the binary
 3. Execute the binary `./utmp-cli`
@@ -24,7 +24,7 @@ Package (with digitemp) is available at [opkg-packages](https://github.com/usbte
 ```
 $ ./usbtemp-cli -h
 	-f	Display temperature using the Fahrenheit scale
-	-p	Set probe precision
+	-p	Set probe precision {9,10,11,12}
 	-q	Quiet mode
 	-r	Get probe serial number (ROM) in hexadecimal, or -R uppercase
 	-s	Set serial port
