@@ -29,7 +29,8 @@ int owReset(int fd)
     ut_errno = 1;
     return -1;
   }
-  term.c_cflag &= ~CSIZE | CS8;
+  term.c_cflag &= ~CSIZE;
+  term.c_cflag |= CS8;
   cfsetispeed(&term, B9600);
   cfsetospeed(&term, B9600);
   tcsetattr(fd, TCSANOW, &term);
@@ -75,7 +76,8 @@ int owReset(int fd)
     rv = -1; /* Timed out or interrupt. */
   }
 
-  term.c_cflag &= ~CSIZE | CS6;
+  term.c_cflag &= ~CSIZE;
+  term.c_cflag |= CS6;
   cfsetispeed(&term, B115200);
   cfsetospeed(&term, B115200);
 
