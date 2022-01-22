@@ -31,11 +31,20 @@ int main(int argc, char **argv)
   time_t now;
   struct tm *timeptr;
   const char *hex_format = NULL;
+  int json_mode = 0;
+  int psuedo_iso_8601_mode = 0;
 
-  while ((c = getopt(argc, argv, "fhp:qRrs:")) != -1) {
+  while ((c = getopt(argc, argv, "fhijp:qRrs:")) != -1) {
     switch (c) {
       case 'f':
         units = 'F';
+        break;
+      case 'j':
+        verbose = 0;
+        json_mode = 1;
+        break;
+      case 'i':
+        psuedo_iso_8601_mode = 1;
         break;
       case 'h':
         action = HELP;
@@ -81,6 +90,8 @@ int main(int argc, char **argv)
   if (action == HELP) {
     printf("\t-f\tDisplay temperature using the Fahrenheit scale\n");
     printf("\t-p\tSet probe precision {9,10,11,12}\n");
+    printf("\t-j\tFormat date and temperature as JSON");
+    printf("\t-i\tFormat dates as UTC ISO 8601");
     printf("\t-q\tQuiet mode\n");
     printf("\t-r\tGet probe serial number (ROM) in hexadecimal, or -R uppercase\n");
     printf("\t-s\tSet serial port\n");
@@ -118,14 +129,32 @@ int main(int argc, char **argv)
         break;
       }
       time(&now);
-      timeptr = localtime(&now);
-      strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", timeptr);
+      if (psuedo_iso_8601_mode > 0) {
+        timeptr = gmtime(&now);
+      } else {
+        timeptr = localtime(&now);
+      }
+      if (psuedo_iso_8601_mode > 0) {
+        strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%SZ", timeptr);
+      } else {
+        strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", timeptr);
+      }
 
       if (units == 'F') {
         temperature = (9 * temperature) / 5 + 32;
       }
 
-      printf("%s Sensor %c: %.2f\n", timebuf, units, temperature);
+
+      if (json_mode > 0) {
+        if (units == 'F') {
+          printf("{\"time\":  \"%s\", \"temp_f\": %.2f }\n", timebuf, temperature);
+        } else {
+          printf("{\"time\":  \"%s\", \"temp_c\": %.2f }\n", timebuf, temperature);
+        }
+      } else {
+        printf("%s Sensor %c: %.2f\n", timebuf, units, temperature);
+      }
+      
       break;
 
     case READ_ROM:

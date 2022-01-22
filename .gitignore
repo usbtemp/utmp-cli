@@ -1,0 +1,3 @@
+src/main.o
+src/usbtemp.o
+utmp-cli
