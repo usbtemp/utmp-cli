@@ -10,7 +10,7 @@ The default output is time with the temperature in degrees Celsius and looks lik
 ```
 May 13 17:05:02 Sensor C: 22.62
 ```
-By using `-f` switch the temperature unit will be switched to Fahrenheit. Date/time formatting is `%b %d %H:%M:%S`.
+By using `-f` switch the temperature unit will be switched to Fahrenheit. Date/time formatting is `%b %d %H:%M:%S` or `%Y-%m-%dT%H:%M:%SZ` (ISO 8601 in UTZ).
 
 Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/utmp-cli/releases/latest).
 
@@ -24,6 +24,8 @@ Package (with digitemp) is available at [opkg-packages](https://github.com/usbte
 ```
 $ ./usbtemp-cli -h
 	-f	Display temperature using the Fahrenheit scale
+	-i	Format dates as UTC ISO 8601
+	-j	Format date and temperature as JSON
 	-p	Set probe precision {9,10,11,12}
 	-q	Quiet mode
 	-r	Get probe serial number (ROM) in hexadecimal, or -R uppercase
