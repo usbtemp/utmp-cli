@@ -15,7 +15,7 @@ By using `-f` switch the temperature unit will be switched to Fahrenheit. Date/t
 Instead of compiling from the source, already compiled executable could be downloaded from [Releases tab](https://github.com/usbtemp/utmp-cli/releases/latest).
 
 ### Windows
-This application could be also compiled on Windows with a MinGW compiler.
+This application could be also compiled on Windows with a MinGW compiler, see `COMPILING.md`
 
 ### OpenWRT/LEDE
 Package (with digitemp) is available at [opkg-packages](https://github.com/usbtemp/opkg-packages).

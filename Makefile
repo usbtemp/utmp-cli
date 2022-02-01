@@ -1,6 +1,6 @@
 OPTS := -O2 -s -std=c90 -I./include
 CFLAGS += -Wall -Werror -Wextra -fdata-sections -ffunction-sections -fno-strict-aliasing
-LDFLAGS	+= -Wl,--gc-sections
+LDFLAGS += -Wl,--gc-sections
 SFLAGS := -R .comment -R .gnu.version -R .note -R .note.ABI-tag
 
 CC = $(CROSS_COMPILE)cc

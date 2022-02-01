@@ -3,26 +3,28 @@
 
 static int ut_errno;
 
+static int is_digit(char c)
+{
+  return '0' <= c && c <= '9';
+}
+
 static int get_new_serial_port(char *buf, const unsigned int buflen, const char *s)
 {
   const char *fmt_x = "COM%u", *fmt_xx = "\\\\.\\COM%u";
   const char *fmt, *p;
   unsigned int num = 0;
 
-  for (p = s; !isdigit(*p); p++);
+  for (p = s; !is_digit(*p); p++);
 
-  while (isdigit(*p)) {
+  while (is_digit(*p)) {
     num *= 10;
     num += *p - '0';
     p++;
   }
 
   fmt = num > 9 ? fmt_xx : fmt_x;
-  if (snprintf(buf, buflen, fmt, num) < 0) {
-    return -1;
-  }
 
-  return 0;
+  return snprintf(buf, buflen, fmt, num);
 }
 
 static int owReset(HANDLE fd)

@@ -3,7 +3,7 @@
 
 #include "platform.h"
 
-#if WINDOWS
+#ifdef WINDOWS
  #define DEFAULT_SERIAL_PORT "COM3"
 #else
  #define DEFAULT_SERIAL_PORT "/dev/ttyUSB0"
