@@ -2,9 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "platform.h"
 #include "usbtemp.h"
+
+#ifdef _XOPEN_VERSION
+#if (_XOPEN_VERSION >= 4)
+  #define SUPPORT_OPT_I
+#endif
+#endif
 
 enum {
   HELP,
@@ -94,19 +101,26 @@ int main(int argc, char **argv)
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI v1.063 Copyright 2022 usbtemp.com et al. Licensed under MIT licence.\n");
+    printf("USB Thermometer CLI v1.064 Copyright 2023 usbtemp.com et al. Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
     printf("\t-f\tDisplay temperature using the Fahrenheit scale\n");
-    printf("\t-i\tFormat dates as UTC ISO 8601\n");
+    printf("\t-i\tFormat date as UTC ISO 8601\n");
     printf("\t-j\tFormat date and temperature as JSON\n");
     printf("\t-p\tSet probe precision {9,10,11,12}\n");
     printf("\t-q\tQuiet mode\n");
-    printf("\t-r\tGet probe serial number (ROM) in hexadecimal, or -R uppercase\n");
+    printf("\t-r\tGet probe serial number (ROM) in hexadecimal, or -R in uppercase hexadecimal\n");
     printf("\t-s\tSet serial port\n");
     return 0;
   }
+
+#ifndef SUPPORT_OPT_I
+  if (psuedo_iso_8601_mode > 1) {
+    fprintf(stderr, "Option -I not supported!\n");
+    return -2;
+  }
+#endif
 
   if (!serial_port) {
     serial_port = DEFAULT_SERIAL_PORT;
@@ -144,7 +158,9 @@ int main(int argc, char **argv)
         if (psuedo_iso_8601_mode == 1) {
           strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%SZ", timeptr);
         } else {
+#ifdef SUPPORT_OPT_I
           strftime(timebuf, sizeof(timebuf), "%FT%T%Z", timeptr);
+#endif
         }
       } else {
         timeptr = localtime(&now);

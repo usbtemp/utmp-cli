@@ -1,4 +1,4 @@
-OPTS := -O2 -s -std=c90 -I./include
+OPTS := -O2 -s -std=c99 -I./include
 CFLAGS += -Wall -Werror -Wextra -fdata-sections -ffunction-sections -fno-strict-aliasing
 LDFLAGS += -Wl,--gc-sections
 SFLAGS := -R .comment -R .gnu.version -R .note -R .note.ABI-tag
@@ -8,7 +8,10 @@ STRIP = $(CROSS_COMPILE)strip
 
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
-TARGET := utmp-cli
+ifeq ($(OS),Windows_NT)
+	EXT := .exe
+endif
+TARGET := utmp-cli$(EXT)
 
 all: $(OBJECTS) $(TARGET)
 

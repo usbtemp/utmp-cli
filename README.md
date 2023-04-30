@@ -24,11 +24,11 @@ Package (with digitemp) is available at [opkg-packages](https://github.com/usbte
 ```
 $ ./usbtemp-cli -h
 	-f	Display temperature using the Fahrenheit scale
-	-i	Format dates as UTC ISO 8601
+	-i	Format date as UTC ISO 8601
 	-j	Format date and temperature as JSON
 	-p	Set probe precision {9,10,11,12}
 	-q	Quiet mode
-	-r	Get probe serial number (ROM) in hexadecimal, or -R uppercase
+	-r	Get probe serial number (ROM) in hexadecimal, or -R in uppercase hexadecimal
 	-s	Set serial port
 ```
 Serial port could be anything like `/dev/ttyUSB0`, `COM6` or similar.

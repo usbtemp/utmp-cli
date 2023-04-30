@@ -16,3 +16,7 @@ Easiest method is to install gcc and make using MSYS2. Since Windows code uses s
 ```
 OPTS := -O2 -s -std=c99 -I./include -mwin32
 ```
+In case terminal returns `make` is not recognized as an internal or external command, adjust `PATH` variable, e.g.
+```
+PATH=%PATH%;C:\msys64\mingw32\bin;C:\msys64\usr\bin
+```
