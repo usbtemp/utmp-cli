@@ -33,7 +33,7 @@ static int owReset(HANDLE fd)
   DWORD wbytes, rbytes;
   unsigned char wbuff, rbuff;
   DCB dcb;
-  
+
   PurgeComm(fd, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
   if (!GetCommState(fd, &dcb)) {
@@ -56,14 +56,15 @@ static int owReset(HANDLE fd)
   ReadFile(fd, &rbuff, 1, &rbytes, NULL);
   if (rbytes != 1) {
     rv = -1;
-  } 
+  }
   else {
     switch (rbuff) {
       case 0:
         /* Ground. */
       case 0xf0:
         /* No response. */
-        rv = -1; break;
+        rv = -1;
+        break;
       default:
         /* Got a response */
         rv = 0;
@@ -84,7 +85,7 @@ static unsigned char owWriteByte(HANDLE fd, unsigned char wbuff)
   char buf[8];
   DWORD wbytes, rbytes, remaining;
   unsigned char rbuff, i;
-  
+
   PurgeComm(fd, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
   for (i = 0; i < 8; i++)
@@ -124,10 +125,10 @@ int owWrite(HANDLE fd, unsigned char wbuff)
 HANDLE owOpen(const char *serial_port)
 {
   HANDLE fd;
-  DCB dcb = { 0 };
-  COMMTIMEOUTS timeouts = { 0 };
+  DCB dcb = {0};
+  COMMTIMEOUTS timeouts = {0};
   char new_serial_port[16];
-  
+
   fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (fd == INVALID_HANDLE_VALUE) {
     if (get_new_serial_port(new_serial_port, sizeof(new_serial_port) - 1, serial_port) < 0) {
@@ -140,7 +141,7 @@ HANDLE owOpen(const char *serial_port)
       return fd;
     }
   }
-  
+
   SecureZeroMemory(&dcb, sizeof(DCB));
   dcb.DCBlength = sizeof(DCB);
 
@@ -149,7 +150,7 @@ HANDLE owOpen(const char *serial_port)
     CloseHandle(fd);
     return INVALID_HANDLE_VALUE;
   }
-  
+
   dcb.BaudRate = CBR_115200;
   dcb.ByteSize = 6;
   dcb.StopBits = ONESTOPBIT;
@@ -160,13 +161,13 @@ HANDLE owOpen(const char *serial_port)
     CloseHandle(fd);
     return INVALID_HANDLE_VALUE;
   }
-  
+
   timeouts.ReadIntervalTimeout = 50;
   timeouts.ReadTotalTimeoutConstant = 50;
   timeouts.ReadTotalTimeoutMultiplier = 10;
   timeouts.WriteTotalTimeoutConstant = 50;
   timeouts.WriteTotalTimeoutMultiplier = 10;
-  
+
   if (!SetCommTimeouts(fd, &timeouts)) {
     CloseHandle(fd);
     ut_errno = 0;

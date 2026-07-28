@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,13 +14,14 @@
 #endif
 #endif
 
-#define __VER__ "v1.07"
+#define VERSION "1.071"
 
 enum {
+  NONE,
   HELP,
   ACQUIRE_TEMP,
   READ_ROM,
-  SET
+  SET_PRECISON,
 };
 
 int main(int argc, char **argv)
@@ -30,11 +32,11 @@ int main(int argc, char **argv)
   HANDLE fd;
   char *serial_port = NULL;
   int json_mode = 0;
-  int psuedo_iso_8601_mode = 0;
+  int pseudo_iso_8601_mode = 0;
   int verbose = 1;
   int rv = 0;
   int i;
-  int action = ACQUIRE_TEMP;
+  int action = 0;
   int precision = 12;
   float temperature;
   unsigned char rom[DS18X20_ROM_SIZE];
@@ -49,10 +51,10 @@ int main(int argc, char **argv)
         units = 'F';
         break;
       case 'i':
-        psuedo_iso_8601_mode = 1;
+        pseudo_iso_8601_mode = 1;
         break;
       case 'I':
-        psuedo_iso_8601_mode = 2;
+        pseudo_iso_8601_mode = 2;
         break;
       case 'j':
         json_mode = 1;
@@ -61,8 +63,14 @@ int main(int argc, char **argv)
         action = HELP;
         break;
       case 'p':
-        action = SET;
+        action = SET_PRECISON;
         precision = strtol(optarg, NULL, 10);
+        if (precision < 9 || 12 < precision) {
+          if (verbose) {
+            fprintf(stderr, "Probe precision out of range!\n");
+          }
+          return -1;
+        }
         break;
       case 'q':
         verbose = 0;
@@ -82,16 +90,15 @@ int main(int argc, char **argv)
   }
 
   if (optind < argc) {
-    serial_port = *(argv + optind);
+    serial_port = argv[optind];
   }
 
-  if (units == 'F') {
-    action = ACQUIRE_TEMP;
-  }
-
-  if (hex_format != NULL)
-  {
+  if (hex_format) {
     action = READ_ROM;
+  }
+
+  if (!action) {
+    action = ACQUIRE_TEMP;
   }
 
   if (json_mode > 0) {
@@ -107,7 +114,7 @@ int main(int argc, char **argv)
   }
 
   if (verbose) {
-    printf("USB Thermometer CLI " __VER__ " Copyright 2024 usbtemp.com et al. Licensed under MIT licence.\n");
+    printf("USB Thermometer CLI v" VERSION " Copyright 2026 usbtemp.com et al. Licensed under MIT licence.\n");
   }
 
   if (action == HELP) {
@@ -122,7 +129,7 @@ int main(int argc, char **argv)
   }
 
 #ifndef SUPPORT_OPT_I
-  if (psuedo_iso_8601_mode > 1) {
+  if (pseudo_iso_8601_mode > 1) {
     fprintf(stderr, "Option -I not supported!\n");
     return -2;
   }
@@ -159,27 +166,40 @@ int main(int argc, char **argv)
         break;
       }
       time(&now);
-      if (psuedo_iso_8601_mode > 0) {
+      if (pseudo_iso_8601_mode > 0) {
         timeptr = gmtime(&now);
-        if (psuedo_iso_8601_mode == 1) {
+        if (!timeptr) {
+          fprintf(stderr, "Cannot determine time!\n");
+          rv = 1;
+          break;
+        }
+        if (pseudo_iso_8601_mode == 1) {
           strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%SZ", timeptr);
-        } else {
+        }
+        else {
 #ifdef SUPPORT_OPT_I
           strftime(timebuf, sizeof(timebuf), "%FT%T%Z", timeptr);
 #endif
         }
-      } else {
+      }
+      else {
         timeptr = localtime(&now);
+        if (!timeptr) {
+          fprintf(stderr, "Cannot determine time!\n");
+          rv = 1;
+          break;
+        }
         strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", timeptr);
       }
 
       if (units == 'F') {
-        temperature = (9 * temperature) / 5 + 32;
+        temperature = (9.0f * temperature) / 5.0f + 32.0f;
       }
 
       if (json_mode > 0) {
-        printf("{ \"time\": \"%s\", \"temp_%c\": %.2f }\n", timebuf, units + 32, temperature);
-      } else {
+        printf("{ \"time\": \"%s\", \"temp_%c\": %.2f }\n", timebuf, tolower((unsigned char)units), temperature);
+      }
+      else {
         printf("%s Sensor %c: %.2f\n", timebuf, units, temperature);
       }
 
@@ -198,17 +218,9 @@ int main(int argc, char **argv)
       printf("\n");
       break;
 
-    case SET:
-      if (precision < 9 || 12 < precision) {
-        if (verbose == 1) {
-          fprintf(stderr, "Probe precision out of range!\n");
-        }
-        rv = 1;
-        break;
-      }
+    case SET_PRECISON:
       rv = DS18B20_setprecision(fd, precision);
       break;
-
   }
 
   DS18B20_close(fd);

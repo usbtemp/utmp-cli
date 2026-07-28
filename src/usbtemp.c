@@ -75,7 +75,7 @@ static int DS18B20_start(HANDLE fd)
     ut_errno = 6;
     return -1;
   }
-  if (owWrite(fd, 0xcc) < 0) {
+  if (owWrite(fd, DS18B20_SKIP_ROM) < 0) {
     ut_errno = 8;
     return -1;
   }
@@ -89,7 +89,7 @@ static int DS18B20_sp(HANDLE fd, unsigned char *sp)
   if (DS18B20_start(fd) < 0) {
     return -1;
   }
-  if (owWrite(fd, 0xbe) < 0) {
+  if (owWrite(fd, DS18B20_READ_SCRATCHPAD) < 0) {
     ut_errno = 8;
     return -1;
   }
@@ -116,7 +116,7 @@ int DS18B20_measure(HANDLE fd)
   if (DS18B20_start(fd) < 0) {
     return -1;
   }
-  if (owWrite(fd, 0x44) < 0) {
+  if (owWrite(fd, DS18B20_CONVERT_T) < 0) {
     ut_errno = 8;
     return -1;
   }
@@ -195,7 +195,7 @@ int DS18B20_rom(HANDLE fd, unsigned char *rom)
     ut_errno = 6;
     return -1;
   }
-  if (owWrite(fd, 0x33) < 0) {
+  if (owWrite(fd, DS18B20_READ_ROM) < 0) {
     ut_errno = 8;
     return -1;
   }
@@ -220,5 +220,5 @@ HANDLE DS18B20_open(const char *serial_port)
 
 void DS18B20_close(HANDLE fd)
 {
-  return owClose(fd);
+  owClose(fd);
 }

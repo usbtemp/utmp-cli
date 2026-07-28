@@ -164,7 +164,7 @@ int owOpen(const char *serial_port)
     return -1;
   }
 
-  if (access(serial_port, R_OK|W_OK) < 0) {
+  if (access(serial_port, R_OK | W_OK) < 0) {
     ut_errno = 4;
     return -1;
   }
