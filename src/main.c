@@ -14,35 +14,81 @@
 #endif
 #endif
 
-#define VERSION "1.071"
+#define VERSION "1.08"
+
+#define MIN_PRECISION 9
+#define MAX_PRECISION 12
 
 enum {
   NONE,
   HELP,
   ACQUIRE_TEMP,
   READ_ROM,
-  SET_PRECISON,
+  SET_PRECISION,
 };
+
+enum {
+  TIME_LOCAL,
+  TIME_ISO8601,
+  TIME_ISO8601_XOPEN
+};
+
+static void fail(void)
+{
+  fprintf(stderr, "%s\n", DS18B20_errmsg());
+}
+
+static int format_timestamp(char *timebuf, const size_t len, const int pseudo_iso_8601_mode)
+{
+  struct tm *timeptr;
+  time_t now;
+
+  time(&now);
+  if (pseudo_iso_8601_mode == TIME_LOCAL) {
+    timeptr = localtime(&now);
+    if (!timeptr) {
+      fprintf(stderr, "Cannot determine time!\n");
+      return 1;
+    }
+    if (!strftime(timebuf, len, "%b %d %H:%M:%S", timeptr)) {
+      return 1;
+    };
+  }
+  else {
+    timeptr = gmtime(&now);
+    if (!timeptr) {
+      fprintf(stderr, "Cannot determine time!\n");
+      return 1;
+    }
+    if (pseudo_iso_8601_mode == TIME_ISO8601) {
+      strftime(timebuf, len, "%Y-%m-%dT%H:%M:%SZ", timeptr);
+    }
+    else {
+#ifdef SUPPORT_OPT_I
+      strftime(timebuf, len, "%FT%T%Z", timeptr);
+#endif
+    }
+  }
+  return 0;
+}
 
 int main(int argc, char **argv)
 {
-  const char *hex_upper = "%02X", *hex_lower = "%02x";
+  const char hex_upper[] = "%02X", hex_lower[] = "%02x";
   int c;
   char units = 'C';
   HANDLE fd;
   char *serial_port = NULL;
   int json_mode = 0;
-  int pseudo_iso_8601_mode = 0;
+  int pseudo_iso_8601_mode = TIME_LOCAL;
   int verbose = 1;
   int rv = 0;
   int i;
-  int action = 0;
+  int action = NONE;
   int precision = 12;
   float temperature;
   unsigned char rom[DS18X20_ROM_SIZE];
   char timebuf[40];
-  time_t now;
-  struct tm *timeptr;
   const char *hex_format = NULL;
 
   while ((c = getopt(argc, argv, "fhiIjp:qRrs:")) != -1) {
@@ -51,10 +97,10 @@ int main(int argc, char **argv)
         units = 'F';
         break;
       case 'i':
-        pseudo_iso_8601_mode = 1;
+        pseudo_iso_8601_mode = TIME_ISO8601;
         break;
       case 'I':
-        pseudo_iso_8601_mode = 2;
+        pseudo_iso_8601_mode = TIME_ISO8601_XOPEN;
         break;
       case 'j':
         json_mode = 1;
@@ -63,13 +109,13 @@ int main(int argc, char **argv)
         action = HELP;
         break;
       case 'p':
-        action = SET_PRECISON;
+        action = SET_PRECISION;
         precision = strtol(optarg, NULL, 10);
-        if (precision < 9 || 12 < precision) {
+        if (precision < MIN_PRECISION || MAX_PRECISION < precision) {
           if (verbose) {
             fprintf(stderr, "Probe precision out of range!\n");
           }
-          return -1;
+          return 1;
         }
         break;
       case 'q':
@@ -85,7 +131,7 @@ int main(int argc, char **argv)
         serial_port = optarg;
         break;
       case '?':
-        return -1;
+        return 1;
     }
   }
 
@@ -129,9 +175,9 @@ int main(int argc, char **argv)
   }
 
 #ifndef SUPPORT_OPT_I
-  if (pseudo_iso_8601_mode > 1) {
+  if (pseudo_iso_8601_mode > TIME_ISO8601) {
     fprintf(stderr, "Option -I not supported!\n");
-    return -2;
+    return 1;
   }
 #endif
 
@@ -144,7 +190,7 @@ int main(int argc, char **argv)
 
   fd = DS18B20_open(serial_port);
   if (!is_fd_valid(fd)) {
-    fprintf(stderr, "%s\n", DS18B20_errmsg());
+    fail();
     return 1;
   }
 
@@ -152,7 +198,7 @@ int main(int argc, char **argv)
 
     case ACQUIRE_TEMP:
       if (DS18B20_measure(fd) < 0) {
-        fprintf(stderr, "%s\n", DS18B20_errmsg());
+        fail();
         rv = 1;
         break;
       }
@@ -161,37 +207,14 @@ int main(int argc, char **argv)
       }
       wait_1s();
       if (DS18B20_acquire(fd, &temperature) < 0) {
-        fprintf(stderr, "%s\n", DS18B20_errmsg());
+        fail();
         rv = 1;
         break;
       }
-      time(&now);
-      if (pseudo_iso_8601_mode > 0) {
-        timeptr = gmtime(&now);
-        if (!timeptr) {
-          fprintf(stderr, "Cannot determine time!\n");
-          rv = 1;
-          break;
-        }
-        if (pseudo_iso_8601_mode == 1) {
-          strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%SZ", timeptr);
-        }
-        else {
-#ifdef SUPPORT_OPT_I
-          strftime(timebuf, sizeof(timebuf), "%FT%T%Z", timeptr);
-#endif
-        }
+      if (format_timestamp(timebuf, sizeof(timebuf), pseudo_iso_8601_mode)) {
+        rv = 1;
+        break;
       }
-      else {
-        timeptr = localtime(&now);
-        if (!timeptr) {
-          fprintf(stderr, "Cannot determine time!\n");
-          rv = 1;
-          break;
-        }
-        strftime(timebuf, sizeof(timebuf), "%b %d %H:%M:%S", timeptr);
-      }
-
       if (units == 'F') {
         temperature = (9.0f * temperature) / 5.0f + 32.0f;
       }
@@ -207,7 +230,7 @@ int main(int argc, char **argv)
 
     case READ_ROM:
       if (DS18B20_rom(fd, rom) < 0) {
-        fprintf(stderr, "%s\n", DS18B20_errmsg());
+        fail();
         rv = 1;
         break;
       }
@@ -218,8 +241,8 @@ int main(int argc, char **argv)
       printf("\n");
       break;
 
-    case SET_PRECISON:
-      rv = DS18B20_setprecision(fd, precision);
+    case SET_PRECISION:
+      rv = DS18B20_set_precision(fd, precision);
       break;
   }
 

@@ -28,7 +28,7 @@ HANDLE DS18B20_open(const char *);
 int DS18B20_measure(HANDLE);
 int DS18B20_acquire(HANDLE, float *);
 int DS18B20_rom(HANDLE, unsigned char *);
-int DS18B20_setprecision(HANDLE, int);
+int DS18B20_set_precision(HANDLE, int);
 void DS18B20_close(HANDLE);
 
 void wait_1s(void);

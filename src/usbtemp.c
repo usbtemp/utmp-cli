@@ -28,9 +28,12 @@ int is_fd_valid(HANDLE fd)
 }
 #endif
 
+#define DS18B20_CONFIG_MASK 0x9F
+#define DS18B20_CONFIG_FIXED 0x1F
+
 extern int ut_errno;
 
-static char* ut_msgs[] = {
+static char *ut_msgs[] = {
   "",
   "Error, could not get baudrate!",
   "Error, could not set baudrate!",
@@ -49,7 +52,7 @@ static unsigned char lsb_crc8(unsigned char *data_in, unsigned int len, const un
   unsigned char crc = 0;
 
   for (i = 0; i < len; i++) {
-    crc ^= *(data_in + i);
+    crc ^= data_in[i];
     bit_counter = 8;
     do {
       if (crc & 0x01) {
@@ -94,16 +97,16 @@ static int DS18B20_sp(HANDLE fd, unsigned char *sp)
     return -1;
   }
   for (i = 0; i < DS18X20_SP_SIZE; i++) {
-    *(sp + i) = owRead(fd);
+    sp[i] = owRead(fd);
   }
 
-  if ((*(sp + 4) & 0x9f) != 0x1f) {
+  if ((sp[4] & DS18B20_CONFIG_MASK) != DS18B20_CONFIG_FIXED) {
     ut_errno = 6;
     return -1;
   }
 
   crc = lsb_crc8(sp, DS18X20_SP_SIZE - 1, DS18X20_GENERATOR);
-  if (*(sp + DS18X20_SP_SIZE - 1) != crc) {
+  if (sp[DS18X20_SP_SIZE - 1] != crc) {
     ut_errno = 7;
     return -1;
   }
@@ -123,7 +126,7 @@ int DS18B20_measure(HANDLE fd)
   return 0;
 }
 
-int DS18B20_setprecision(HANDLE fd, int precision)
+int DS18B20_set_precision(HANDLE fd, int precision)
 {
   int i, rv;
   unsigned char cfg_old, cfg[4], sp_sensor[DS18X20_SP_SIZE];
@@ -175,6 +178,10 @@ int DS18B20_acquire(HANDLE fd, float *temperature)
   unsigned short uT;
   unsigned char sp_sensor[DS18X20_SP_SIZE];
 
+  if (!temperature) {
+    return -1;
+  }
+
   rv = DS18B20_sp(fd, sp_sensor);
   if (rv < 0) {
     return rv;
@@ -191,6 +198,10 @@ int DS18B20_rom(HANDLE fd, unsigned char *rom)
 {
   unsigned char i, crc;
 
+  if (!rom) {
+    return -1;
+  }
+
   if (owReset(fd) < 0) {
     ut_errno = 6;
     return -1;
@@ -205,7 +216,7 @@ int DS18B20_rom(HANDLE fd, unsigned char *rom)
   }
 
   crc = lsb_crc8(rom, DS18X20_ROM_SIZE - 1, DS18X20_GENERATOR);
-  if (*(rom + DS18X20_ROM_SIZE - 1) != crc) {
+  if (rom[DS18X20_ROM_SIZE - 1] != crc) {
     ut_errno = 7;
     return -1;
   }
