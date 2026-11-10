@@ -14,7 +14,11 @@ static int get_new_serial_port(char *buf, const unsigned int buflen, const char 
   const char *fmt, *p;
   unsigned int num = 0;
 
-  for (p = s; !is_digit(*p); p++);
+  for (p = s; *p && !is_digit(*p); p++);
+
+  if (!is_digit(*p)) {
+    return -1;
+  }
 
   while (is_digit(*p)) {
     num *= 10;
@@ -29,94 +33,101 @@ static int get_new_serial_port(char *buf, const unsigned int buflen, const char 
 
 static int owReset(HANDLE fd)
 {
-  int rv;
+  int rv = -1;
   DWORD wbytes, rbytes;
   unsigned char wbuff, rbuff;
   DCB dcb;
 
   PurgeComm(fd, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
+  SecureZeroMemory(&dcb, sizeof(DCB));
+  dcb.DCBlength = sizeof(DCB);
   if (!GetCommState(fd, &dcb)) {
+    ut_errno = UT_ERR_GET_BAUD;
     return -1;
   }
   dcb.BaudRate = CBR_9600;
   dcb.ByteSize = 8;
   if (!SetCommState(fd, &dcb)) {
+    ut_errno = UT_ERR_SET_BAUD;
     return -1;
   }
 
   /* Send the reset pulse. */
   wbuff = 0xf0;
-  WriteFile(fd, &wbuff, 1, &wbytes, NULL);
-  if (wbytes != 1) {
-    ut_errno = 9;
-    return -1;
+  if (!WriteFile(fd, &wbuff, 1, &wbytes, NULL) || wbytes != 1) {
+    ut_errno = UT_ERR_SEND;
   }
-
-  ReadFile(fd, &rbuff, 1, &rbytes, NULL);
-  if (rbytes != 1) {
-    rv = -1;
+  else if (!ReadFile(fd, &rbuff, 1, &rbytes, NULL)) {
+    ut_errno = UT_ERR_RECEIVE;
+  }
+  else if (rbytes != 1 || rbuff == 0 || rbuff == 0xf0) {
+    /* Timed out, ground, or no response. */
+    ut_errno = UT_ERR_NO_SENSOR;
   }
   else {
-    switch (rbuff) {
-      case 0:
-        /* Ground. */
-      case 0xf0:
-        /* No response. */
-        rv = -1;
-        break;
-      default:
-        /* Got a response */
-        rv = 0;
-    }
+    /* Got a response */
+    rv = 0;
   }
 
+  /* Always restore the data speed, even after a failed reset. */
   dcb.BaudRate = CBR_115200;
   dcb.ByteSize = 6;
   if (!SetCommState(fd, &dcb)) {
+    ut_errno = UT_ERR_SET_BAUD;
     return -1;
   }
 
   return rv;
 }
 
-static unsigned char owWriteByte(HANDLE fd, unsigned char wbuff)
+/* Returns the byte read back (0..255), or -1 on error with ut_errno set. */
+static int owWriteByte(HANDLE fd, unsigned char wbuff)
 {
-  char buf[8];
-  DWORD wbytes, rbytes, remaining;
-  unsigned char rbuff, i;
+  unsigned char buf[8];
+  unsigned char rbuff = 0;
+  DWORD wbytes, rbytes, remaining, i;
 
   PurgeComm(fd, PURGE_RXCLEAR | PURGE_TXCLEAR);
 
-  for (i = 0; i < 8; i++)
-    buf[i] = (wbuff & (1 << (i & 0x7))) ? 0xff : 0x00;
-  WriteFile(fd, &buf, 8, &wbytes, NULL);
-  if (wbytes != 8) {
-    ut_errno = 9;
+  for (i = 0; i < 8; i++) {
+    buf[i] = (wbuff & (1 << i)) ? 0xff : 0x00;
+  }
+  if (!WriteFile(fd, buf, 8, &wbytes, NULL) || wbytes != 8) {
+    ut_errno = UT_ERR_SEND;
     return -1;
   }
 
-  rbuff = 0;
   remaining = 8;
   while (remaining > 0) {
-    ReadFile(fd, &buf, remaining, &rbytes, NULL);
+    /* Zero bytes read means the read timed out. */
+    if (!ReadFile(fd, buf, remaining, &rbytes, NULL) || rbytes == 0) {
+      ut_errno = UT_ERR_RECEIVE;
+      return -1;
+    }
     for (i = 0; i < rbytes; i++) {
       rbuff >>= 1;
       rbuff |= (buf[i] & 0x01) ? 0x80 : 0x00;
-      remaining--;
     }
+    remaining -= rbytes;
   }
   return rbuff;
 }
 
-unsigned char owRead(HANDLE fd)
+int owRead(HANDLE fd)
 {
   return owWriteByte(fd, 0xff);
 }
 
 int owWrite(HANDLE fd, unsigned char wbuff)
 {
-  if (owWriteByte(fd, wbuff) != wbuff) {
+  int rv = owWriteByte(fd, wbuff);
+
+  if (rv < 0) {
+    return -1;
+  }
+  if (rv != wbuff) {
+    ut_errno = UT_ERR_RESPONSE;
     return -1;
   }
   return 0;
@@ -132,12 +143,12 @@ HANDLE owOpen(const char *serial_port)
   fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
   if (fd == INVALID_HANDLE_VALUE) {
     if (get_new_serial_port(new_serial_port, sizeof(new_serial_port) - 1, serial_port) < 0) {
-      ut_errno = 3;
+      ut_errno = UT_ERR_NO_PORT;
       return fd;
     }
     fd = CreateFile(new_serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (fd == INVALID_HANDLE_VALUE) {
-      ut_errno = 3;
+      ut_errno = UT_ERR_NO_PORT;
       return fd;
     }
   }
@@ -146,7 +157,7 @@ HANDLE owOpen(const char *serial_port)
   dcb.DCBlength = sizeof(DCB);
 
   if (!GetCommState(fd, &dcb)) {
-    ut_errno = 1;
+    ut_errno = UT_ERR_GET_BAUD;
     CloseHandle(fd);
     return INVALID_HANDLE_VALUE;
   }
@@ -157,7 +168,7 @@ HANDLE owOpen(const char *serial_port)
   dcb.Parity = NOPARITY;
 
   if (!SetCommState(fd, &dcb)) {
-    ut_errno = 2;
+    ut_errno = UT_ERR_SET_BAUD;
     CloseHandle(fd);
     return INVALID_HANDLE_VALUE;
   }
@@ -170,7 +181,7 @@ HANDLE owOpen(const char *serial_port)
 
   if (!SetCommTimeouts(fd, &timeouts)) {
     CloseHandle(fd);
-    ut_errno = 0;
+    ut_errno = UT_ERR_OPEN;
     return INVALID_HANDLE_VALUE;
   }
 

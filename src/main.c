@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -14,7 +15,11 @@
 #endif
 #endif
 
-#define VERSION "1.08"
+#ifndef SUPPORT_OPT_I
+static const char opt_I_unsupported[] = "Option -I not supported!\n";
+#endif
+
+#define VERSION "1.09"
 
 #define MIN_PRECISION 9
 #define MAX_PRECISION 12
@@ -30,7 +35,7 @@ enum {
 enum {
   TIME_LOCAL,
   TIME_ISO8601,
-  TIME_ISO8601_XOPEN
+  TIME_ISO8601_OFFSET
 };
 
 static void fail(void)
@@ -42,33 +47,49 @@ static int format_timestamp(char *timebuf, const size_t len, const int pseudo_is
 {
   struct tm *timeptr;
   time_t now;
+  const char *fmt;
+  size_t n;
 
   time(&now);
-  if (pseudo_iso_8601_mode == TIME_LOCAL) {
-    timeptr = localtime(&now);
-    if (!timeptr) {
-      fprintf(stderr, "Cannot determine time!\n");
-      return 1;
-    }
-    if (!strftime(timebuf, len, "%b %d %H:%M:%S", timeptr)) {
-      return 1;
-    };
+  if (pseudo_iso_8601_mode == TIME_ISO8601) {
+    timeptr = gmtime(&now);
   }
   else {
-    timeptr = gmtime(&now);
-    if (!timeptr) {
-      fprintf(stderr, "Cannot determine time!\n");
-      return 1;
-    }
-    if (pseudo_iso_8601_mode == TIME_ISO8601) {
-      strftime(timebuf, len, "%Y-%m-%dT%H:%M:%SZ", timeptr);
-    }
-    else {
-#ifdef SUPPORT_OPT_I
-      strftime(timebuf, len, "%FT%T%Z", timeptr);
-#endif
-    }
+    timeptr = localtime(&now);
   }
+  if (!timeptr) {
+    fprintf(stderr, "Cannot determine time!\n");
+    return 1;
+  }
+
+  switch (pseudo_iso_8601_mode) {
+    case TIME_ISO8601:
+      fmt = "%Y-%m-%dT%H:%M:%SZ";
+      break;
+    case TIME_ISO8601_OFFSET:
+#ifdef SUPPORT_OPT_I
+      fmt = "%Y-%m-%dT%H:%M:%S%z";
+      break;
+#else
+      /* Older C libraries print a zone name instead of a numeric offset for %z. */
+      fputs(opt_I_unsupported, stderr);
+      return 1;
+#endif
+    default:
+      fmt = "%b %d %H:%M:%S";
+  }
+
+  n = strftime(timebuf, len, fmt, timeptr);
+  if (!n) {
+    return 1;
+  }
+
+  /* Turn the +hhmm offset from %z into +hh:mm, as ISO 8601 extended format needs. */
+  if (pseudo_iso_8601_mode == TIME_ISO8601_OFFSET && n >= 5 && n + 1 < len) {
+    memmove(timebuf + n - 1, timebuf + n - 2, 3);
+    timebuf[n - 2] = ':';
+  }
+
   return 0;
 }
 
@@ -86,6 +107,8 @@ int main(int argc, char **argv)
   int i;
   int action = NONE;
   int precision = 12;
+  long precision_arg;
+  char *endptr;
   float temperature;
   unsigned char rom[DS18X20_ROM_SIZE];
   char timebuf[40];
@@ -100,7 +123,7 @@ int main(int argc, char **argv)
         pseudo_iso_8601_mode = TIME_ISO8601;
         break;
       case 'I':
-        pseudo_iso_8601_mode = TIME_ISO8601_XOPEN;
+        pseudo_iso_8601_mode = TIME_ISO8601_OFFSET;
         break;
       case 'j':
         json_mode = 1;
@@ -110,13 +133,20 @@ int main(int argc, char **argv)
         break;
       case 'p':
         action = SET_PRECISION;
-        precision = strtol(optarg, NULL, 10);
-        if (precision < MIN_PRECISION || MAX_PRECISION < precision) {
+        precision_arg = strtol(optarg, &endptr, 10);
+        if (endptr == optarg || *endptr != '\0') {
+          if (verbose) {
+            fprintf(stderr, "Probe precision is not a number!\n");
+          }
+          return 1;
+        }
+        if (precision_arg < MIN_PRECISION || MAX_PRECISION < precision_arg) {
           if (verbose) {
             fprintf(stderr, "Probe precision out of range!\n");
           }
           return 1;
         }
+        precision = (int)precision_arg;
         break;
       case 'q':
         verbose = 0;
@@ -166,6 +196,9 @@ int main(int argc, char **argv)
   if (action == HELP) {
     printf("\t-f\tDisplay temperature using the Fahrenheit scale\n");
     printf("\t-i\tFormat date as UTC ISO 8601\n");
+#ifdef SUPPORT_OPT_I
+    printf("\t-I\tFormat date as local time ISO 8601 with UTC offset\n");
+#endif
     printf("\t-j\tFormat date and temperature as JSON\n");
     printf("\t-p\tSet probe precision {9,10,11,12}\n");
     printf("\t-q\tQuiet mode\n");
@@ -176,7 +209,7 @@ int main(int argc, char **argv)
 
 #ifndef SUPPORT_OPT_I
   if (pseudo_iso_8601_mode > TIME_ISO8601) {
-    fprintf(stderr, "Option -I not supported!\n");
+    fputs(opt_I_unsupported, stderr);
     return 1;
   }
 #endif
@@ -242,7 +275,10 @@ int main(int argc, char **argv)
       break;
 
     case SET_PRECISION:
-      rv = DS18B20_set_precision(fd, precision);
+      if (DS18B20_set_precision(fd, precision) < 0) {
+        fail();
+        rv = 1;
+      }
       break;
   }
 

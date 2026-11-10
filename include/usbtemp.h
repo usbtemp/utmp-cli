@@ -23,7 +23,22 @@
 #define DS18B20_SP_WRITE 0x4E
 #define DS18B20_SP_SAVE 0x48
 
-char *DS18B20_errmsg(void);
+/* Error codes stored in ut_errno; see DS18B20_errmsg(). */
+enum {
+  UT_OK,
+  UT_ERR_GET_BAUD,
+  UT_ERR_SET_BAUD,
+  UT_ERR_NO_PORT,
+  UT_ERR_PERMISSION,
+  UT_ERR_OPEN,
+  UT_ERR_NO_SENSOR,
+  UT_ERR_CRC,
+  UT_ERR_RESPONSE,
+  UT_ERR_SEND,
+  UT_ERR_RECEIVE
+};
+
+const char *DS18B20_errmsg(void);
 HANDLE DS18B20_open(const char *);
 int DS18B20_measure(HANDLE);
 int DS18B20_acquire(HANDLE, float *);

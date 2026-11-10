@@ -1,0 +1,56 @@
+name: Build and release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+            gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+
+      - name: Build Linux x86-64 (utmp-cli)
+        run: |
+          make
+          mkdir -p dist
+          mv utmp-cli dist/utmp-cli
+          make clean
+
+      - name: Build Linux ARM32 (utmp-cli-arm32)
+        run: |
+          CFLAGS=-fno-pie LDFLAGS=-no-pie make CROSS_COMPILE=arm-linux-gnueabihf- CC=arm-linux-gnueabihf-gcc
+          mv utmp-cli dist/utmp-cli-arm32
+          make clean
+
+      - name: Build Windows x86-64 (utmp-cli-w64.exe)
+        run: |
+          make OS=Windows_NT CROSS_COMPILE=x86_64-w64-mingw32- CC=x86_64-w64-mingw32-gcc
+          mv utmp-cli.exe dist/utmp-cli-w64.exe
+          make clean OS=Windows_NT
+
+      - name: Build Windows x86 (utmp-cli.exe)
+        run: |
+          make OS=Windows_NT CROSS_COMPILE=i686-w64-mingw32- CC=i686-w64-mingw32-gcc
+          mv utmp-cli.exe dist/utmp-cli.exe
+          make clean OS=Windows_NT
+
+      - name: Show binaries
+        run: file dist/*
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
