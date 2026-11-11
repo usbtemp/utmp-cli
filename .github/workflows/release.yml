@@ -14,23 +14,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check tag matches VERSION
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^#define VERSION "\(.*\)"$/\1/p' src/main.c)
+          if [ -z "$version" ]; then
+            echo "::error::Could not find VERSION in src/main.c"
+            exit 1
+          fi
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match VERSION \"$version\" in src/main.c (expected tag v$version)"
+            exit 1
+          fi
+          echo "Tag $TAG matches VERSION $version"
+
       - name: Install cross-compilers
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+            binutils-arm-linux-gnueabihf \
             gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
+
+      # zig cc links against an older glibc than the runner's, so the Linux
+      # binaries run on older systems too.
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
 
       - name: Build Linux x86-64 (utmp-cli)
         run: |
-          make
+          CFLAGS=-fPIE LDFLAGS=-pie make CC="zig cc -target x86_64-linux-gnu.2.17"
           mkdir -p dist
           mv utmp-cli dist/utmp-cli
           make clean
 
       - name: Build Linux ARM32 (utmp-cli-arm32)
         run: |
-          CFLAGS=-fno-pie LDFLAGS=-no-pie make CROSS_COMPILE=arm-linux-gnueabihf- CC=arm-linux-gnueabihf-gcc
+          CFLAGS=-fPIE LDFLAGS=-pie make CROSS_COMPILE=arm-linux-gnueabihf- CC="zig cc -target arm-linux-gnueabihf.2.17"
           mv utmp-cli dist/utmp-cli-arm32
           make clean
 
@@ -52,5 +73,14 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ github.event.repository.name }} ${{ github.ref_name }}
           files: dist/*
           generate_release_notes: true
+          body: |
+            _for GNU/Linux_
+            - `utmp-cli`: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked
+            - `utmp-cli-arm32`: ELF 32-bit LSB pie executable, ARM, EABI5 version 1 (SYSV), dynamically linked
+
+            _for MS Windows_
+            - `utmp-cli-w64.exe`: PE32+ executable (console) x86-64
+            - `utmp-cli.exe`: PE32 executable (console) Intel 80386
