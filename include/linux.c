@@ -1,7 +1,10 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -150,6 +153,51 @@ int owWrite(int fd, unsigned char wbuff)
   return 0;
 }
 
+/*
+ * Open the port for exclusive use, so that two running instances don't mix
+ * their bytes on the 1-wire bus. flock() keeps out other instances (also when
+ * running as root); TIOCEXCL makes any further open() of the port fail with
+ * EBUSY. If the port is busy, retry once a second for up to PORT_WAIT_S seconds.
+ */
+static int open_exclusive(const char *serial_port)
+{
+  int fd, waited;
+
+  for (waited = 0; ; waited++) {
+    fd = open(serial_port, O_RDWR);
+    if (fd < 0) {
+      if (errno != EBUSY) {
+        ut_errno = UT_ERR_OPEN;
+        return -1;
+      }
+    }
+    else if (flock(fd, LOCK_EX | LOCK_NB) == 0 || errno != EWOULDBLOCK) {
+      /* Locked, or the lock is not supported here: go on without it. */
+      ioctl(fd, TIOCEXCL);
+      return fd;
+    }
+    else {
+      close(fd);
+    }
+
+    if (waited >= PORT_WAIT_S) {
+      ut_errno = UT_ERR_BUSY;
+      return -1;
+    }
+    wait_s(1);
+  }
+}
+
+void owClose(int fd)
+{
+  /*
+   * TIOCEXCL stays set until every process has closed the port, so clear it
+   * explicitly in case another process still has the port open.
+   */
+  ioctl(fd, TIOCNXCL);
+  close(fd);
+}
+
 static int file_exists(const char *filename)
 {
   struct stat st;
@@ -172,9 +220,8 @@ int owOpen(const char *serial_port)
     return -1;
   }
 
-  fd = open(serial_port, O_RDWR);
+  fd = open_exclusive(serial_port);
   if (fd < 0) {
-    ut_errno = UT_ERR_OPEN;
     return -1;
   }
 
@@ -188,7 +235,7 @@ int owOpen(const char *serial_port)
   cfsetospeed(&term, B115200);
 
   if (tcsetattr(fd, TCSANOW, &term) < 0) {
-    close(fd);
+    owClose(fd);
     ut_errno = UT_ERR_SET_BAUD;
     return -1;
   }
@@ -196,9 +243,4 @@ int owOpen(const char *serial_port)
   tcflush(fd, TCIOFLUSH);
 
   return fd;
-}
-
-void owClose(int fd)
-{
-  close(fd);
 }

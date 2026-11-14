@@ -19,7 +19,7 @@
 static const char opt_I_unsupported[] = "Option -I not supported!\n";
 #endif
 
-#define VERSION "1.09"
+#define VERSION "1.091"
 
 #define MIN_PRECISION 9
 #define MAX_PRECISION 12
@@ -38,9 +38,47 @@ enum {
   TIME_ISO8601_OFFSET
 };
 
-static void fail(void)
+/* Exit codes, documented in README.md. */
+enum {
+  RC_OK = 0,
+  RC_ERROR = 1,      /* Any other error. */
+  RC_USAGE = 2,      /* Invalid option or argument. */
+  RC_NO_PORT = 3,    /* Serial port does not exist. */
+  RC_PERMISSION = 4, /* No read/write permission for the serial port. */
+  RC_PORT = 5,       /* Could not open or configure the serial port. */
+  RC_BUSY = 6,       /* Serial port is in use by another program. */
+  RC_NO_SENSOR = 7,  /* No sensor found on the adapter. */
+  RC_COMM = 8,       /* Sending, receiving or unexpected response. */
+  RC_CRC = 9         /* Sensor data CRC mismatch. */
+};
+
+/* Print the last device error and return the matching exit code. */
+static int fail(void)
 {
   fprintf(stderr, "%s\n", DS18B20_errmsg());
+
+  switch (DS18B20_errcode()) {
+    case UT_ERR_NO_PORT:
+      return RC_NO_PORT;
+    case UT_ERR_PERMISSION:
+      return RC_PERMISSION;
+    case UT_ERR_OPEN:
+    case UT_ERR_GET_BAUD:
+    case UT_ERR_SET_BAUD:
+      return RC_PORT;
+    case UT_ERR_NO_SENSOR:
+      return RC_NO_SENSOR;
+    case UT_ERR_SEND:
+    case UT_ERR_RECEIVE:
+    case UT_ERR_RESPONSE:
+      return RC_COMM;
+    case UT_ERR_CRC:
+      return RC_CRC;
+    case UT_ERR_BUSY:
+      return RC_BUSY;
+    default:
+      return RC_ERROR;
+  }
 }
 
 static int format_timestamp(char *timebuf, const size_t len, const int pseudo_iso_8601_mode)
@@ -103,7 +141,7 @@ int main(int argc, char **argv)
   int json_mode = 0;
   int pseudo_iso_8601_mode = TIME_LOCAL;
   int verbose = 1;
-  int rv = 0;
+  int rv = RC_OK;
   int i;
   int action = NONE;
   int precision = 12;
@@ -138,13 +176,13 @@ int main(int argc, char **argv)
           if (verbose) {
             fprintf(stderr, "Probe precision is not a number!\n");
           }
-          return 1;
+          return RC_USAGE;
         }
         if (precision_arg < MIN_PRECISION || MAX_PRECISION < precision_arg) {
           if (verbose) {
             fprintf(stderr, "Probe precision out of range!\n");
           }
-          return 1;
+          return RC_USAGE;
         }
         precision = (int)precision_arg;
         break;
@@ -161,7 +199,7 @@ int main(int argc, char **argv)
         serial_port = optarg;
         break;
       case '?':
-        return 1;
+        return RC_USAGE;
     }
   }
 
@@ -181,7 +219,7 @@ int main(int argc, char **argv)
     verbose = 0;
     if (action != ACQUIRE_TEMP) {
       fprintf(stderr, "JSON output only supported when displaying temperature.\n");
-      return 1;
+      return RC_USAGE;
     }
   }
 
@@ -204,13 +242,13 @@ int main(int argc, char **argv)
     printf("\t-q\tQuiet mode\n");
     printf("\t-r\tGet probe serial number (ROM) in hexadecimal, or -R in uppercase hexadecimal\n");
     printf("\t-s\tSet serial port\n");
-    return 0;
+    return RC_OK;
   }
 
 #ifndef SUPPORT_OPT_I
   if (pseudo_iso_8601_mode > TIME_ISO8601) {
     fputs(opt_I_unsupported, stderr);
-    return 1;
+    return RC_USAGE;
   }
 #endif
 
@@ -223,29 +261,26 @@ int main(int argc, char **argv)
 
   fd = DS18B20_open(serial_port);
   if (!is_fd_valid(fd)) {
-    fail();
-    return 1;
+    return fail();
   }
 
   switch (action) {
 
     case ACQUIRE_TEMP:
       if (DS18B20_measure(fd) < 0) {
-        fail();
-        rv = 1;
+        rv = fail();
         break;
       }
       if (verbose) {
         printf("Waiting for response ...\n");
       }
-      wait_1s();
+      wait_s(1);
       if (DS18B20_acquire(fd, &temperature) < 0) {
-        fail();
-        rv = 1;
+        rv = fail();
         break;
       }
       if (format_timestamp(timebuf, sizeof(timebuf), pseudo_iso_8601_mode)) {
-        rv = 1;
+        rv = RC_ERROR;
         break;
       }
       if (units == 'F') {
@@ -263,8 +298,7 @@ int main(int argc, char **argv)
 
     case READ_ROM:
       if (DS18B20_rom(fd, rom) < 0) {
-        fail();
-        rv = 1;
+        rv = fail();
         break;
       }
       printf("ROM: ");
@@ -276,8 +310,7 @@ int main(int argc, char **argv)
 
     case SET_PRECISION:
       if (DS18B20_set_precision(fd, precision) < 0) {
-        fail();
-        rv = 1;
+        rv = fail();
       }
       break;
   }

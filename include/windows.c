@@ -139,18 +139,31 @@ HANDLE owOpen(const char *serial_port)
   DCB dcb = {0};
   COMMTIMEOUTS timeouts = {0};
   char new_serial_port[16];
+  int waited;
 
-  fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (fd == INVALID_HANDLE_VALUE) {
-    if (get_new_serial_port(new_serial_port, sizeof(new_serial_port) - 1, serial_port) < 0) {
+  /*
+   * COM ports can only be opened by one process at a time (share mode 0);
+   * if another process has it open, CreateFile fails with ERROR_ACCESS_DENIED.
+   * Retry once a second for up to PORT_WAIT_S seconds then.
+   */
+  for (waited = 0; ; waited++) {
+    fd = CreateFile(serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fd == INVALID_HANDLE_VALUE && GetLastError() != ERROR_ACCESS_DENIED
+        && get_new_serial_port(new_serial_port, sizeof(new_serial_port) - 1, serial_port) >= 0) {
+      fd = CreateFile(new_serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    }
+    if (fd != INVALID_HANDLE_VALUE) {
+      break;
+    }
+    if (GetLastError() != ERROR_ACCESS_DENIED) {
       ut_errno = UT_ERR_NO_PORT;
       return fd;
     }
-    fd = CreateFile(new_serial_port, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (fd == INVALID_HANDLE_VALUE) {
-      ut_errno = UT_ERR_NO_PORT;
+    if (waited >= PORT_WAIT_S) {
+      ut_errno = UT_ERR_BUSY;
       return fd;
     }
+    wait_s(1);
   }
 
   SecureZeroMemory(&dcb, sizeof(DCB));

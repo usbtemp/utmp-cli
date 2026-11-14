@@ -9,6 +9,9 @@
  #define DEFAULT_SERIAL_PORT "/dev/ttyUSB0"
 #endif
 
+/* How long to wait for a serial port that another process is using. */
+#define PORT_WAIT_S 2
+
 #define DS18X20_GENERATOR 0x8c
 #define DS18X20_ROM_SIZE 8
 #define DS18X20_SP_SIZE 9
@@ -31,6 +34,7 @@ enum {
   UT_ERR_NO_PORT,
   UT_ERR_PERMISSION,
   UT_ERR_OPEN,
+  UT_ERR_BUSY,
   UT_ERR_NO_SENSOR,
   UT_ERR_CRC,
   UT_ERR_RESPONSE,
@@ -39,6 +43,7 @@ enum {
 };
 
 const char *DS18B20_errmsg(void);
+int DS18B20_errcode(void);
 HANDLE DS18B20_open(const char *);
 int DS18B20_measure(HANDLE);
 int DS18B20_acquire(HANDLE, float *);
@@ -46,7 +51,7 @@ int DS18B20_rom(HANDLE, unsigned char *);
 int DS18B20_set_precision(HANDLE, int);
 void DS18B20_close(HANDLE);
 
-void wait_1s(void);
+void wait_s(unsigned int);
 int is_fd_valid(HANDLE);
 
 #endif

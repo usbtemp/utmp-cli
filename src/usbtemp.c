@@ -2,9 +2,9 @@
 
 #ifdef _WIN32
 #include "windows.c"
-void wait_1s(void)
+void wait_s(unsigned int seconds)
 {
-  Sleep(1000);
+  Sleep(seconds * 1000);
 }
 
 int is_fd_valid(HANDLE fd)
@@ -14,12 +14,12 @@ int is_fd_valid(HANDLE fd)
 #else
 /* Generic POSIX implementation (Linux, macOS, BSD). */
 #include "linux.c"
-void wait_1s(void)
+void wait_s(unsigned int seconds)
 {
   struct timeval wait_tv;
 
   wait_tv.tv_usec = 0;
-  wait_tv.tv_sec = 1;
+  wait_tv.tv_sec = seconds;
   select(0, NULL, NULL, NULL, &wait_tv);
 }
 
@@ -41,6 +41,7 @@ static const char *const ut_msgs[] = {
   [UT_ERR_NO_PORT] = "Error, serial port does not exist!",
   [UT_ERR_PERMISSION] = "Error, you don't have rw permission to access serial port!",
   [UT_ERR_OPEN] = "Error, failed to open serial port device!",
+  [UT_ERR_BUSY] = "Error, serial port is in use by another program!",
   [UT_ERR_NO_SENSOR] = "Error, sensor not found!",
   [UT_ERR_CRC] = "Error, sensor CRC mismatch!",
   [UT_ERR_RESPONSE] = "Warning, not expected sensor response!",
@@ -72,6 +73,11 @@ static unsigned char lsb_crc8(unsigned char *data_in, unsigned int len, const un
 const char *DS18B20_errmsg(void)
 {
   return ut_msgs[ut_errno];
+}
+
+int DS18B20_errcode(void)
+{
+  return ut_errno;
 }
 
 static int DS18B20_start(HANDLE fd)
