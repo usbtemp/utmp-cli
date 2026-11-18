@@ -19,7 +19,7 @@
 static const char opt_I_unsupported[] = "Option -I not supported!\n";
 #endif
 
-#define VERSION "1.091"
+#define VERSION "1.092"
 
 #define MIN_PRECISION 9
 #define MAX_PRECISION 12

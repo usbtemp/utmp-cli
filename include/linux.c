@@ -164,7 +164,8 @@ static int open_exclusive(const char *serial_port)
   int fd, waited;
 
   for (waited = 0; ; waited++) {
-    fd = open(serial_port, O_RDWR);
+    /* O_NOCTTY: don't let the port become our controlling terminal (and send us SIGHUP on unplug). */
+    fd = open(serial_port, O_RDWR | O_NOCTTY);
     if (fd < 0) {
       if (errno != EBUSY) {
         ut_errno = UT_ERR_OPEN;

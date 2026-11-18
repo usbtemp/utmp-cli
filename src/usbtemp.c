@@ -32,6 +32,9 @@ int is_fd_valid(HANDLE fd)
 #define DS18B20_CONFIG_MASK 0x9F
 #define DS18B20_CONFIG_FIXED 0x1F
 
+/* Reads failing the CRC check (e.g. noise on the 1-wire bus) are tried this many times. */
+#define DS18B20_READ_ATTEMPTS 2
+
 extern int ut_errno;
 
 static const char *const ut_msgs[] = {
@@ -91,7 +94,7 @@ static int DS18B20_start(HANDLE fd)
   return 0;
 }
 
-static int DS18B20_sp(HANDLE fd, unsigned char *sp)
+static int DS18B20_sp_once(HANDLE fd, unsigned char *sp)
 {
   unsigned char i, crc;
   int byte;
@@ -124,6 +127,20 @@ static int DS18B20_sp(HANDLE fd, unsigned char *sp)
   }
 
   return 0;
+}
+
+/* Read the scratchpad, retrying a read that fails the CRC check. */
+static int DS18B20_sp(HANDLE fd, unsigned char *sp)
+{
+  int attempt, rv = -1;
+
+  for (attempt = 0; attempt < DS18B20_READ_ATTEMPTS; attempt++) {
+    rv = DS18B20_sp_once(fd, sp);
+    if (rv == 0 || ut_errno != UT_ERR_CRC) {
+      break;
+    }
+  }
+  return rv;
 }
 
 int DS18B20_measure(HANDLE fd)
@@ -203,14 +220,10 @@ int DS18B20_acquire(HANDLE fd, float *temperature)
   return 0;
 }
 
-int DS18B20_rom(HANDLE fd, unsigned char *rom)
+static int DS18B20_rom_once(HANDLE fd, unsigned char *rom)
 {
   unsigned char i, crc;
   int byte;
-
-  if (!rom) {
-    return -1;
-  }
 
   if (owReset(fd) < 0) {
     return -1;
@@ -236,6 +249,24 @@ int DS18B20_rom(HANDLE fd, unsigned char *rom)
   }
 
   return 0;
+}
+
+/* Read the ROM (serial number), retrying a read that fails the CRC check. */
+int DS18B20_rom(HANDLE fd, unsigned char *rom)
+{
+  int attempt, rv = -1;
+
+  if (!rom) {
+    return -1;
+  }
+
+  for (attempt = 0; attempt < DS18B20_READ_ATTEMPTS; attempt++) {
+    rv = DS18B20_rom_once(fd, rom);
+    if (rv == 0 || ut_errno != UT_ERR_CRC) {
+      break;
+    }
+  }
+  return rv;
 }
 
 HANDLE DS18B20_open(const char *serial_port)
