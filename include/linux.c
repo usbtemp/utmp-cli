@@ -34,9 +34,8 @@ int owReset(int fd)
   }
   term.c_cflag &= ~CSIZE;
   term.c_cflag |= CS8;
-  cfsetispeed(&term, B9600);
-  cfsetospeed(&term, B9600);
-  if (tcsetattr(fd, TCSANOW, &term) < 0) {
+  if (cfsetispeed(&term, B9600) < 0 || cfsetospeed(&term, B9600) < 0 ||
+      tcsetattr(fd, TCSANOW, &term) < 0) {
     ut_errno = UT_ERR_SET_BAUD;
     return -1;
   }
@@ -77,9 +76,8 @@ int owReset(int fd)
   /* Always restore the data speed, even after a failed reset. */
   term.c_cflag &= ~CSIZE;
   term.c_cflag |= CS6;
-  cfsetispeed(&term, B115200);
-  cfsetospeed(&term, B115200);
-  if (tcsetattr(fd, TCSANOW, &term) < 0) {
+  if (cfsetispeed(&term, B115200) < 0 || cfsetospeed(&term, B115200) < 0 ||
+      tcsetattr(fd, TCSANOW, &term) < 0) {
     ut_errno = UT_ERR_SET_BAUD;
     return -1;
   }
@@ -232,10 +230,8 @@ int owOpen(const char *serial_port)
   term.c_cc[VTIME] = 0;
   term.c_cflag |= CS6 | CREAD | HUPCL | CLOCAL;
 
-  cfsetispeed(&term, B115200);
-  cfsetospeed(&term, B115200);
-
-  if (tcsetattr(fd, TCSANOW, &term) < 0) {
+  if (cfsetispeed(&term, B115200) < 0 || cfsetospeed(&term, B115200) < 0 ||
+      tcsetattr(fd, TCSANOW, &term) < 0) {
     owClose(fd);
     ut_errno = UT_ERR_SET_BAUD;
     return -1;

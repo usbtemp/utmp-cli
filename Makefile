@@ -2,7 +2,7 @@ OPTS := -O2 -std=c99 -I./include
 CFLAGS += -Wall -Werror -Wextra -fdata-sections -ffunction-sections -fno-strict-aliasing
 LDFLAGS += -Wl,--gc-sections
 comma := ,
-SFLAGS := -R .comment -R .gnu.version -R .note -R .note.ABI-tag
+SFLAGS := -R .comment -R .note -R .note.ABI-tag
 
 CC = $(CROSS_COMPILE)cc
 STRIP = $(CROSS_COMPILE)strip
